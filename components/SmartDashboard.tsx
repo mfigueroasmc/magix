@@ -90,43 +90,44 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
     }, [filteredData, startDate, endDate]);
 
     const chartData = useMemo(() => {
-        const temporal = Object.entries(filteredData.reduce<{[key: string]: number}>((acc, curr) => {
+        const temporal = Object.entries(filteredData.reduce((acc, curr) => {
             const date = curr.fecha;
             acc[date] = (acc[date] || 0) + curr.total;
             return acc;
-        }, {}))
+        }, {} as {[key: string]: number}))
         .map(([name, total]) => ({ name, total }))
         .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
         
-        // Fix: Explicitly type the accumulator in reduce to prevent type inference issues.
-        const porCompania = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
+        // FIX: Explicitly typing the accumulator's initial value in `reduce` to ensure correct type inference for `porCompania`.
+        const porCompania = Object.values(filteredData.reduce((acc, curr) => {
             const key = curr.compania;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
             return acc;
-        }, {}))
+        }, {} as {[key: string]: { name: string; total: number }}))
         .sort((a,b) => b.total - a.total);
 
-        // Fix: Explicitly type the accumulator in reduce to prevent type inference issues.
-        const porSalon = Object.entries(filteredData.reduce<{[key: string]: { name: string; total: number; count: number }}>((acc, curr) => {
+        // FIX: Explicitly typing the accumulator's initial value in `reduce` to ensure correct type inference for `porSalon`.
+        const porSalon = Object.entries(filteredData.reduce((acc, curr) => {
             const key = curr.salon;
             if (!acc[key]) acc[key] = { name: key, total: 0, count: 0 };
             acc[key].total += curr.total;
             acc[key].count += 1;
             return acc;
-        }, {}))
+        }, {} as {[key: string]: { name: string; total: number; count: number }}))
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => b.total - a.total);
         
-        // Fix: Explicitly type the accumulator in reduce to prevent type inference issues.
-        const porItem = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
+        // FIX: Explicitly typing the accumulator's initial value in `reduce` to ensure correct type inference for `porItem`.
+        const porItem = Object.values(filteredData.reduce((acc, curr) => {
             const key = curr.item;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
             return acc;
-        }, {}))
+        }, {} as {[key: string]: { name: string; total: number }}))
         .sort((a,b) => b.total - a.total);
 
+        // FIX: With `porItem` correctly typed, `totalRevenue` is inferred as a number, and properties of `item` are accessible.
         const totalRevenue = porItem.reduce((sum, item) => sum + item.total, 0);
         let cumulativeTotal = 0;
         const paretoItems = porItem.filter(item => {

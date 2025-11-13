@@ -25,7 +25,7 @@ const Chatbot: React.FC = () => {
     useEffect(() => {
         if (isOpen) {
             setMessages([
-                { sender: 'bot', text: '¡Hola! Soy el asistente de Magix. ¿Cómo puedo ayudarte a usar la aplicación hoy?' }
+                { sender: 'bot', text: '¡Hola! Soy el asistente de Magix. ¿Cómo puedo ayudarte a analizar tus datos hoy?' }
             ]);
         }
     }, [isOpen]);
@@ -40,19 +40,10 @@ const Chatbot: React.FC = () => {
 
         try {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.5-pro',
                 contents: [{ role: 'user', parts: [{ text: inputValue }] }],
                 config: {
-                    systemInstruction: `Eres un asistente de IA amigable y servicial para la aplicación 'Magix Data Analyzer'. Tu única función es responder preguntas sobre cómo usar la aplicación.
-                    
-                    Las características de la aplicación sobre las que puedes informar son:
-                    - **Importar Datos**: El usuario puede importar archivos Excel (.xlsx, .xls) o CSV (.csv) con registros. Las columnas importantes son Fecha, Salón, Compañía, Ítem, Tipo, Valor y Cantidad.
-                    - **Crear/Editar/Eliminar Registros**: Se pueden gestionar registros individualmente desde la tabla de datos.
-                    - **Tabla de Datos**: Permite ver, filtrar y ordenar todos los registros.
-                    - **Dashboard Inteligente**: Una vista de análisis con KPIs (indicadores clave de rendimiento) y gráficos sobre los ingresos por tiempo, compañía, salón e ítem.
-                    - **Exportar Datos**: Se pueden exportar todos los datos a un archivo Excel, o un resumen mensual de ventas.
-
-                    Sé conciso y claro en tus respuestas. No respondas preguntas que no estén relacionadas con el uso de la aplicación 'Magix Data Analyzer'. Si te preguntan algo fuera de tema, responde amablemente que solo puedes ayudar con preguntas sobre la aplicación.`,
+                    systemInstruction: `Eres un asistente de IA experto y amigable para la aplicación 'Magix Data Analyzer'. Tu rol principal es ayudar a los usuarios a entender y utilizar las funcionalidades de la aplicación. También puedes responder preguntas generales sobre tecnologías relacionadas como Supabase, bases de datos y Microsoft Excel para ofrecer un soporte más completo. Proporciona respuestas claras, útiles y concisas.`,
                 },
             });
 
