@@ -130,13 +130,13 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
             }
         }
 
-        const salonUsage = filteredData.reduce((acc, curr) => {
+        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        const salonUsage = filteredData.reduce<Record<string, number>>((acc, curr) => {
             acc[curr.salon] = (acc[curr.salon] || 0) + 1;
             return acc;
-        }, {} as {[key: string]: number});
+        }, {});
         
-        // FIX: Destructuring array elements in sort callback to aid with type inference and prevent arithmetic operation error.
-        const sortedSalonesByUsage = Object.entries(salonUsage).sort(([, countA], [, countB]) => countA - countB);
+        const sortedSalonesByUsage = Object.entries(salonUsage).sort((a, b) => a[1] - b[1]);
         if (sortedSalonesByUsage.length > 1) {
             const leastUsed = sortedSalonesByUsage[0];
             alerts.push({
@@ -173,31 +173,31 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         .map(([name, total]) => ({ name, total }))
         .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
         
-        const porCompania = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
+        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        const porCompania = Object.values(filteredData.reduce<Record<string, { name: string; total: number }>>((acc, curr) => {
             const key = curr.compania;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
             return acc;
         }, {}))
-        // FIX: Added explicit types to sort callback parameters to prevent type inference errors.
-        .sort((a: { total: number }, b: { total: number }) => b.total - a.total);
+        .sort((a, b) => b.total - a.total);
 
-        // FIX: Replaced Object.entries().map() with Object.values() to simplify and avoid spread operator error, and added explicit types to sort callback.
-        const porSalon = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number; count: number }}>((acc, curr) => {
+        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        const porSalon = Object.values(filteredData.reduce<Record<string, { name: string; total: number; count: number }>>((acc, curr) => {
             const key = curr.salon;
             if (!acc[key]) acc[key] = { name: key, total: 0, count: 0 };
             acc[key].total += curr.total;
             acc[key].count += 1;
             return acc;
-        }, {})).sort((a: { total: number }, b: { total: number }) => b.total - a.total);
+        }, {})).sort((a, b) => b.total - a.total);
         
-        const porItem = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
+        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        const porItem = Object.values(filteredData.reduce<Record<string, { name: string; total: number }>>((acc, curr) => {
             const key = curr.item;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
             return acc;
-        // FIX: Added explicit types to sort callback parameters to prevent type inference errors, which resolves cascading errors.
-        }, {})).sort((a: { total: number }, b: { total: number }) => b.total - a.total);
+        }, {})).sort((a, b) => b.total - a.total);
 
         const totalRevenue = porItem.reduce((sum, item) => sum + item.total, 0);
         let cumulativeTotal = 0;

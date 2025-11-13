@@ -6,24 +6,25 @@ type FormData = Omit<Registro, 'id' | 'user_id' | 'created_at'>;
 interface DataFormProps {
   onSubmit: (registro: Omit<Registro, 'user_id' | 'created_at'>) => void;
   onCancel: () => void;
-  initialData?: Registro | null;
+  initialData?: Partial<Registro> | null;
 }
 
 const DataForm: React.FC<DataFormProps> = ({ onSubmit, onCancel, initialData }) => {
-  const isEditing = !!initialData;
+  const isEditing = !!initialData?.id;
+  const isNewItemForEvent = !!initialData && !initialData.id;
 
   const getInitialState = (): FormData => {
-    if (isEditing && initialData) {
+    if (isEditing || isNewItemForEvent) {
       return {
-        fecha: initialData.fecha,
-        beo: initialData.beo || '',
-        salon: initialData.salon,
-        compania: initialData.compania,
-        item: initialData.item,
-        tipo: initialData.tipo,
-        valor: initialData.valor,
-        cantidad: initialData.cantidad,
-        total: initialData.total,
+        fecha: initialData!.fecha!,
+        beo: initialData!.beo || '',
+        salon: initialData!.salon!,
+        compania: initialData!.compania!,
+        item: initialData!.item || '',
+        tipo: initialData!.tipo || 'Venta',
+        valor: initialData!.valor ?? 0,
+        cantidad: initialData!.cantidad ?? 1,
+        total: initialData!.total ?? 0,
       };
     }
     return {
@@ -69,14 +70,17 @@ const DataForm: React.FC<DataFormProps> = ({ onSubmit, onCancel, initialData }) 
     onSubmit({ ...formData, id: initialData?.id });
   };
 
+  const formTitle = isEditing ? 'Editar Ítem' : isNewItemForEvent ? 'Añadir Ítem al Evento' : 'Crear Nuevo Evento';
+  const submitButtonText = isEditing ? 'Guardar Cambios' : isNewItemForEvent ? 'Añadir Ítem' : 'Crear Evento y Guardar';
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">{isEditing ? 'Editar Registro' : 'Añadir Nuevo Registro'}</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">{formTitle}</h3>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Input fields */}
             <div className="col-span-1">
                 <label htmlFor="fecha" className="block text-sm font-medium text-gray-700">Fecha</label>
-                <input type="date" id="fecha" name="fecha" value={formData.fecha} onChange={handleChange} required className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
+                <input type="date" id="fecha" name="fecha" value={formData.fecha} onChange={handleChange} required disabled={isNewItemForEvent} className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white disabled:bg-gray-100"/>
             </div>
             <div className="col-span-1">
                 <label htmlFor="beo" className="block text-sm font-medium text-gray-700">BEO</label>
@@ -84,11 +88,11 @@ const DataForm: React.FC<DataFormProps> = ({ onSubmit, onCancel, initialData }) 
             </div>
             <div className="col-span-1">
                 <label htmlFor="salon" className="block text-sm font-medium text-gray-700">Salón</label>
-                <input type="text" id="salon" name="salon" value={formData.salon} onChange={handleChange} required className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
+                <input type="text" id="salon" name="salon" value={formData.salon} onChange={handleChange} required disabled={isNewItemForEvent} className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white disabled:bg-gray-100"/>
             </div>
             <div className="col-span-1">
                 <label htmlFor="compania" className="block text-sm font-medium text-gray-700">Compañía</label>
-                <input type="text" id="compania" name="compania" value={formData.compania} onChange={handleChange} required className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
+                <input type="text" id="compania" name="compania" value={formData.compania} onChange={handleChange} required disabled={isNewItemForEvent} className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white disabled:bg-gray-100"/>
             </div>
             <div className="col-span-1 md:col-span-2">
                 <label htmlFor="item" className="block text-sm font-medium text-gray-700">Ítem</label>
@@ -116,11 +120,11 @@ const DataForm: React.FC<DataFormProps> = ({ onSubmit, onCancel, initialData }) 
                 <input type="text" id="total" name="total" value={formData.total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })} readOnly className="mt-1 block w-full rounded-md border border-gray-300 sm:text-sm bg-gray-100 cursor-not-allowed"/>
             </div>
             <div className="col-span-full flex justify-end gap-2">
-                <button type="button" onClick={onCancel} className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                <button type="button" onClick={onCancel} className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     Cancelar
                 </button>
-                <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    {isEditing ? 'Guardar Cambios' : 'Guardar Registro'}
+                <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    {submitButtonText}
                 </button>
             </div>
         </form>

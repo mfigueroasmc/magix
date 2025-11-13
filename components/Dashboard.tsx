@@ -5,10 +5,11 @@ import type { Registro } from '../types';
 import DataForm from './DataForm';
 import DataTable from './DataTable';
 import SmartDashboard from './SmartDashboard';
+import Inventory from './Inventory';
 import { exportToExcel } from '../utils/exportToExcel';
 import { exportSummaryToExcel } from '../utils/exportSummaryToExcel';
 import { parseExcelFile } from '../utils/importFromExcel';
-import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon, CalendarIcon } from './ui/Icons';
+import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon, CalendarIcon, InventoryIcon } from './ui/Icons';
 import Chatbot from './Chatbot';
 
 interface DashboardProps {
@@ -19,9 +20,9 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'charts' | 'table'>('charts');
+  const [view, setView] = useState<'charts' | 'table' | 'inventory'>('charts');
   const [showForm, setShowForm] = useState(false);
-  const [editingRegistro, setEditingRegistro] = useState<Registro | null>(null);
+  const [editingRegistro, setEditingRegistro] = useState<Partial<Registro> | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,8 +52,43 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
     fetchRegistros();
   }, [fetchRegistros]);
 
+  const events = useMemo(() => {
+    const eventMap = new Map<string, Registro[]>();
+    registros.forEach(r => {
+      const key = `${r.fecha}|${r.salon}|${r.compania}`;
+      if (!eventMap.has(key)) {
+        eventMap.set(key, []);
+      }
+      eventMap.get(key)!.push(r);
+    });
+    return Array.from(eventMap.entries()).map(([key, items]) => {
+      const [fecha, salon, compania] = key.split('|');
+      return {
+        key,
+        fecha,
+        salon,
+        compania,
+        beo: items[0]?.beo, // Assume BEO is same for the event
+        items,
+        total: items.reduce((sum, item) => sum + item.total, 0),
+      };
+    }).sort((a, b) => b.fecha.localeCompare(a.fecha)); // Sort events by date descending
+  }, [registros]);
+
   const handleOpenFormForCreate = () => {
     setEditingRegistro(null);
+    setShowForm(true);
+  };
+  
+  const handleAddItemToEvent = (eventData: Pick<Registro, 'fecha' | 'salon' | 'compania' | 'beo'>) => {
+    setEditingRegistro({
+      ...eventData,
+      item: '',
+      tipo: 'Venta',
+      valor: 0,
+      cantidad: 1,
+      total: 0,
+    });
     setShowForm(true);
   };
 
@@ -102,13 +138,13 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
 
 
   const deleteRegistro = async (id: number) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este registro?')) {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este ítem?')) {
         try {
             const { error } = await supabase.from('registros').delete().match({ id });
             if (error) throw error;
             setRegistros(prev => prev.filter(r => r.id !== id));
         } catch (error: any) {
-            setError('Error al eliminar el registro: ' + error.message);
+            setError('Error al eliminar el ítem: ' + error.message);
         }
     }
   };
@@ -175,6 +211,22 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
 
   const totals = registros.reduce((acc, curr) => acc + curr.total, 0);
 
+  const renderContent = () => {
+    if (loading) {
+        return <div className="text-center py-10">Cargando datos...</div>;
+    }
+    switch(view) {
+        case 'charts':
+            return <SmartDashboard data={registros} />;
+        case 'table':
+            return <DataTable events={events} onDelete={deleteRegistro} onEdit={handleOpenFormForEdit} onAddItem={handleAddItemToEvent} />;
+        case 'inventory':
+            return <Inventory session={session} events={events} />;
+        default:
+            return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow-md sticky top-0 z-10">
@@ -198,82 +250,77 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
         {importMessage && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">{importMessage}</div>}
         
-        <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 className="text-xl font-semibold text-gray-700">Resumen General</h2>
-                    <p className="text-gray-500">Total de registros: {registros.length}</p>
-                    <p className="text-2xl font-bold text-blue-600 mt-1">
-                        Total General: {totals.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}
+        { view !== 'inventory' && (
+            <>
+                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h2 className="text-xl font-semibold text-gray-700">Resumen General</h2>
+                            <p className="text-gray-500">Total de eventos: {events.length} | Total de ítems: {registros.length}</p>
+                            <p className="text-2xl font-bold text-blue-600 mt-1">
+                                Total General: {totals.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                            <button onClick={handleOpenFormForCreate} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                                <AddIcon className="h-5 w-5"/>
+                                Nuevo Evento
+                            </button>
+                            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx, .xls, .csv" className="hidden" disabled={isImporting}/>
+                            <button onClick={triggerFileSelect} disabled={isImporting} className="flex items-center gap-2 bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-300">
+                                <ImportIcon className="h-5 w-5"/>
+                                {isImporting ? 'Importando...' : 'Importar'}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-md font-semibold text-gray-600 flex items-center gap-2">
+                                <CalendarIcon className="h-5 w-5"/>
+                                Opciones de Exportación
+                            </h3>
+                            <p className="text-sm text-gray-500">Filtrados: {filteredForExport.length} de {registros.length} registros.</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label htmlFor="export-start-date" className="text-sm font-medium text-gray-700">Fecha Inicial</label>
+                                <input type="date" id="export-start-date" value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} className="mt-1 p-2 border border-gray-300 rounded-md w-full bg-white"/>
+                            </div>
+                            <div>
+                                <label htmlFor="export-end-date" className="text-sm font-medium text-gray-700">Fecha Final</label>
+                                <input type="date" id="export-end-date" value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} className="mt-1 p-2 border border-gray-300 rounded-md w-full bg-white"/>
+                            </div>
+                             <div className="flex gap-2 col-span-1 lg:col-span-2 justify-end">
+                                 <button onClick={() => { setExportStartDate(''); setExportEndDate(''); }} className="py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 h-[42px]">
+                                    Limpiar Filtros
+                                </button>
+                                <button onClick={handleExport} className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors h-[42px]">
+                                    <DownloadIcon className="h-5 w-5"/>
+                                    Exportar
+                                </button>
+                                <button onClick={handleSummaryExport} className="flex items-center gap-2 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors h-[42px]">
+                                    <SummaryIcon className="h-5 w-5"/>
+                                    Exportar Resumen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+                  <h2 className="text-xl font-semibold text-gray-700 mb-4">Acerca de Magix Data Analyzer</h2>
+                  <div className="text-sm text-gray-600 space-y-3">
+                    <p>
+                      <strong>Magix Data Analyzer</strong> es una aplicación web diseñada para la gestión inteligente y el análisis de datos operativos en tiempo real. Su arquitectura moderna permite importar, registrar y visualizar información de forma ágil y segura, integrándose directamente con Supabase para ofrecer almacenamiento confiable, autenticación de usuarios y sincronización continua.
                     </p>
+                     <p>
+                        Ahora con su nuevo módulo de <strong>Inventario</strong>, la plataforma no solo analiza el rendimiento de los eventos, sino que también permite llevar un control detallado del equipamiento, gestionar stock y realizar reservas de artículos para cada evento, centralizando toda la operativa en un solo lugar.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <button onClick={handleOpenFormForCreate} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                        <AddIcon className="h-5 w-5"/>
-                        Nuevo Registro
-                    </button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx, .xls, .csv" className="hidden" disabled={isImporting}/>
-                    <button onClick={triggerFileSelect} disabled={isImporting} className="flex items-center gap-2 bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-300">
-                        <ImportIcon className="h-5 w-5"/>
-                        {isImporting ? 'Importando...' : 'Importar'}
-                    </button>
-                </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-md font-semibold text-gray-600 flex items-center gap-2">
-                        <CalendarIcon className="h-5 w-5"/>
-                        Opciones de Exportación
-                    </h3>
-                    <p className="text-sm text-gray-500">Filtrados: {filteredForExport.length} de {registros.length} registros.</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                    <div>
-                        <label htmlFor="export-start-date" className="text-sm font-medium text-gray-700">Fecha Inicial</label>
-                        <input type="date" id="export-start-date" value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} className="mt-1 p-2 border border-gray-300 rounded-md w-full bg-white"/>
-                    </div>
-                    <div>
-                        <label htmlFor="export-end-date" className="text-sm font-medium text-gray-700">Fecha Final</label>
-                        <input type="date" id="export-end-date" value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} className="mt-1 p-2 border border-gray-300 rounded-md w-full bg-white"/>
-                    </div>
-                     <div className="flex gap-2 col-span-1 lg:col-span-2 justify-end">
-                         <button onClick={() => { setExportStartDate(''); setExportEndDate(''); }} className="py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 h-[42px]">
-                            Limpiar Filtros
-                        </button>
-                        <button onClick={handleExport} className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors h-[42px]">
-                            <DownloadIcon className="h-5 w-5"/>
-                            Exportar
-                        </button>
-                        <button onClick={handleSummaryExport} className="flex items-center gap-2 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors h-[42px]">
-                            <SummaryIcon className="h-5 w-5"/>
-                            Exportar Resumen
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">Acerca de Magix Data Analyzer</h2>
-          <div className="text-sm text-gray-600 space-y-3">
-            <p>
-              <strong>Magix Data Analyzer</strong> es una aplicación web diseñada para la gestión inteligente y el análisis de datos operativos en tiempo real. Su arquitectura moderna permite importar, registrar y visualizar información de forma ágil y segura, integrándose directamente con Supabase para ofrecer almacenamiento confiable, autenticación de usuarios y sincronización continua.
-            </p>
-            <p>
-              La plataforma combina simplicidad y potencia analítica, entregando una experiencia minimalista y eficiente. A través de su dashboard interactivo, los usuarios pueden:
-            </p>
-            <ul className="list-disc list-inside pl-4 space-y-1">
-              <li>Consultar y filtrar registros de manera dinámica.</li>
-              <li>Analizar totales, promedios y tendencias mediante gráficos inteligentes.</li>
-              <li>Exportar datos e informes consolidados en formato Excel.</li>
-              <li>Mantener control total sobre los valores, ítems, compañías y salones utilizados.</li>
-            </ul>
-            <p>
-              Cada componente de Magix Data Analyzer ha sido optimizado para ofrecer rendimiento, claridad visual y usabilidad, adaptándose tanto a equipos administrativos como a profesionales que requieren una herramienta confiable para la toma de decisiones basada en datos.
-            </p>
-          </div>
-        </div>
-
+            </>
+        )}
+        
         {showForm && (
           <div className="mb-6">
             <DataForm onSubmit={handleSaveRegistro} onCancel={handleCloseForm} initialData={editingRegistro}/>
@@ -291,11 +338,14 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                         <TableIcon className="h-5 w-5"/>
                         <span>Tabla de Datos</span>
                     </button>
+                    <button onClick={() => setView('inventory')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'inventory' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
+                        <InventoryIcon className="h-5 w-5"/>
+                        <span>Inventario</span>
+                    </button>
                 </nav>
             </div>
             
-            {loading ? <div className="text-center py-10">Cargando datos...</div> : 
-              view === 'table' ? <DataTable data={registros} onDelete={deleteRegistro} onEdit={handleOpenFormForEdit} /> : <SmartDashboard data={registros} />}
+            {renderContent()}
         </div>
       </main>
       <Chatbot />
