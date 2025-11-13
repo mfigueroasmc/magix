@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
@@ -216,6 +217,27 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
             </div>
         </div>
 
+        <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Acerca de Magix Data Analyzer</h2>
+          <div className="text-sm text-gray-600 space-y-3">
+            <p>
+              <strong>Magix Data Analyzer</strong> es una aplicación web diseñada para la gestión inteligente y el análisis de datos operativos en tiempo real. Su arquitectura moderna permite importar, registrar y visualizar información de forma ágil y segura, integrándose directamente con Supabase para ofrecer almacenamiento confiable, autenticación de usuarios y sincronización continua.
+            </p>
+            <p>
+              La plataforma combina simplicidad y potencia analítica, entregando una experiencia minimalista y eficiente. A través de su dashboard interactivo, los usuarios pueden:
+            </p>
+            <ul className="list-disc list-inside pl-4 space-y-1">
+              <li>Consultar y filtrar registros de manera dinámica.</li>
+              <li>Analizar totales, promedios y tendencias mediante gráficos inteligentes.</li>
+              <li>Exportar datos e informes consolidados en formato Excel.</li>
+              <li>Mantener control total sobre los valores, ítems, compañías y salones utilizados.</li>
+            </ul>
+            <p>
+              Cada componente de Magix Data Analyzer ha sido optimizado para ofrecer rendimiento, claridad visual y usabilidad, adaptándose tanto a equipos administrativos como a profesionales que requieren una herramienta confiable para la toma de decisiones basada en datos.
+            </p>
+          </div>
+        </div>
+
         {showForm && (
           <div className="mb-6">
             <DataForm onSubmit={handleSaveRegistro} onCancel={handleCloseForm} initialData={editingRegistro}/>
@@ -241,6 +263,9 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         </div>
       </main>
       <Chatbot />
+      <footer className="text-center py-4 text-sm text-gray-500 border-t border-gray-200 mt-8">
+        &copy; {new Date().getFullYear()} @leoJeks
+      </footer>
     </div>
   );
 };

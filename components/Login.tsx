@@ -34,8 +34,8 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg">
         <div className="text-center">
             <div className="flex flex-col justify-center items-center gap-3 mb-4">
                <MagixLogo className="h-16 w-auto"/>
@@ -47,7 +47,7 @@ const Login: React.FC = () => {
             {isSignUp ? 'Crea una cuenta para empezar' : 'Ingresa a tu cuenta'}
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+        <form className="mt-6 space-y-6" onSubmit={handleLogin}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <input
@@ -101,6 +101,10 @@ const Login: React.FC = () => {
           >
             {isSignUp ? '¿Ya tienes una cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
           </button>
+        </div>
+        
+        <div className="text-center text-xs text-gray-400 mt-6 border-t pt-4">
+            &copy; {new Date().getFullYear()} @leoJeks
         </div>
       </div>
     </div>

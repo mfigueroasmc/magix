@@ -1,5 +1,5 @@
 {
   "name": "Magix Data Analyzer",
-  "description": "Una aplicación web para Magix para registrar, analizar y exportar datos de eventos, con autenticación de usuario y almacenamiento en Supabase.",
+  "description": "Magix Data Analyzer es una aplicación web diseñada para la gestión inteligente y el análisis de datos operativos en tiempo real. Su arquitectura moderna permite importar, registrar y visualizar información de forma ágil y segura, integrándose directamente con Supabase para ofrecer almacenamiento confiable, autenticación de usuarios y sincronización continua.",
   "requestFramePermissions": []
 }
