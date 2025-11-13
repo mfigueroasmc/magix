@@ -4,11 +4,12 @@ import { supabase } from '../services/supabase';
 import type { Registro } from '../types';
 import DataForm from './DataForm';
 import DataTable from './DataTable';
-import AnalyticsCharts from './AnalyticsCharts';
+import SmartDashboard from './SmartDashboard';
 import { exportToExcel } from '../utils/exportToExcel';
 import { exportSummaryToExcel } from '../utils/exportSummaryToExcel';
 import { parseExcelFile } from '../utils/importFromExcel';
 import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon } from './ui/Icons';
+import Chatbot from './Chatbot';
 
 interface DashboardProps {
   session: Session;
@@ -230,15 +231,16 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                     </button>
                     <button onClick={() => setView('charts')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'charts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
                        <ChartIcon className="h-5 w-5"/>
-                       <span>Análisis Gráfico</span>
+                       <span>Dashboard Inteligente</span>
                     </button>
                 </nav>
             </div>
             
             {loading ? <div className="text-center py-10">Cargando datos...</div> : 
-              view === 'table' ? <DataTable data={registros} onDelete={deleteRegistro} onEdit={handleOpenFormForEdit} /> : <AnalyticsCharts data={registros} />}
+              view === 'table' ? <DataTable data={registros} onDelete={deleteRegistro} onEdit={handleOpenFormForEdit} /> : <SmartDashboard data={registros} />}
         </div>
       </main>
+      <Chatbot />
     </div>
   );
 };
