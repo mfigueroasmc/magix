@@ -1,0 +1,5 @@
+{
+  "name": "Magix Data Analyzer",
+  "description": "Una aplicación web para Magix para registrar, analizar y exportar datos de eventos, con autenticación de usuario y almacenamiento en Supabase.",
+  "requestFramePermissions": []
+}
