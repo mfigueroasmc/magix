@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import type { Registro } from '../types';
@@ -9,7 +8,7 @@ import SmartDashboard from './SmartDashboard';
 import { exportToExcel } from '../utils/exportToExcel';
 import { exportSummaryToExcel } from '../utils/exportSummaryToExcel';
 import { parseExcelFile } from '../utils/importFromExcel';
-import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon } from './ui/Icons';
+import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon, CalendarIcon } from './ui/Icons';
 import Chatbot from './Chatbot';
 
 interface DashboardProps {
@@ -20,12 +19,15 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'table' | 'charts'>('charts');
+  const [view, setView] = useState<'charts' | 'table'>('charts');
   const [showForm, setShowForm] = useState(false);
   const [editingRegistro, setEditingRegistro] = useState<Registro | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
 
   const fetchRegistros = useCallback(async () => {
     setLoading(true);
@@ -110,13 +112,23 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         }
     }
   };
+  
+  const filteredForExport = useMemo(() => {
+    if (!exportStartDate && !exportEndDate) return registros;
+    return registros.filter(r => {
+        const itemDate = r.fecha;
+        const startMatch = exportStartDate ? itemDate >= exportStartDate : true;
+        const endMatch = exportEndDate ? itemDate <= exportEndDate : true;
+        return startMatch && endMatch;
+    });
+  }, [registros, exportStartDate, exportEndDate]);
 
   const handleExport = () => {
-    exportToExcel(registros, `registros_${new Date().toISOString().split('T')[0]}`);
+    exportToExcel(filteredForExport, `registros_${new Date().toISOString().split('T')[0]}`);
   };
 
   const handleSummaryExport = () => {
-    exportSummaryToExcel(registros, `resumen_mensual_${new Date().toISOString().split('T')[0]}`);
+    exportSummaryToExcel(filteredForExport, `resumen_mensual_${new Date().toISOString().split('T')[0]}`);
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,23 +208,47 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button onClick={handleOpenFormForCreate} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        <AddIcon className="h-5 w-5"/>
+                        Nuevo Registro
+                    </button>
                     <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx, .xls, .csv" className="hidden" disabled={isImporting}/>
                     <button onClick={triggerFileSelect} disabled={isImporting} className="flex items-center gap-2 bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-300">
                         <ImportIcon className="h-5 w-5"/>
                         {isImporting ? 'Importando...' : 'Importar'}
                     </button>
-                    <button onClick={handleExport} className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
-                        <DownloadIcon className="h-5 w-5"/>
-                        Exportar
-                    </button>
-                    <button onClick={handleSummaryExport} className="flex items-center gap-2 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">
-                        <SummaryIcon className="h-5 w-5"/>
-                        Exportar Resumen
-                    </button>
-                    <button onClick={handleOpenFormForCreate} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                        <AddIcon className="h-5 w-5"/>
-                        Nuevo Registro
-                    </button>
+                </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-md font-semibold text-gray-600 flex items-center gap-2">
+                        <CalendarIcon className="h-5 w-5"/>
+                        Opciones de Exportación
+                    </h3>
+                    <p className="text-sm text-gray-500">Filtrados: {filteredForExport.length} de {registros.length} registros.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label htmlFor="export-start-date" className="text-sm font-medium text-gray-700">Fecha Inicial</label>
+                        <input type="date" id="export-start-date" value={exportStartDate} onChange={e => setExportStartDate(e.target.value)} className="mt-1 p-2 border border-gray-300 rounded-md w-full bg-white"/>
+                    </div>
+                    <div>
+                        <label htmlFor="export-end-date" className="text-sm font-medium text-gray-700">Fecha Final</label>
+                        <input type="date" id="export-end-date" value={exportEndDate} onChange={e => setExportEndDate(e.target.value)} className="mt-1 p-2 border border-gray-300 rounded-md w-full bg-white"/>
+                    </div>
+                     <div className="flex gap-2 col-span-1 lg:col-span-2 justify-end">
+                         <button onClick={() => { setExportStartDate(''); setExportEndDate(''); }} className="py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 h-[42px]">
+                            Limpiar Filtros
+                        </button>
+                        <button onClick={handleExport} className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors h-[42px]">
+                            <DownloadIcon className="h-5 w-5"/>
+                            Exportar
+                        </button>
+                        <button onClick={handleSummaryExport} className="flex items-center gap-2 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors h-[42px]">
+                            <SummaryIcon className="h-5 w-5"/>
+                            Exportar Resumen
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -247,13 +283,13 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg">
             <div className="border-b border-gray-200 mb-4">
                 <nav className="-mb-px flex space-x-6">
-                    <button onClick={() => setView('table')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'table' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
-                        <TableIcon className="h-5 w-5"/>
-                        <span>Tabla de Datos</span>
-                    </button>
                     <button onClick={() => setView('charts')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'charts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
                        <ChartIcon className="h-5 w-5"/>
                        <span>Dashboard Inteligente</span>
+                    </button>
+                    <button onClick={() => setView('table')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'table' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
+                        <TableIcon className="h-5 w-5"/>
+                        <span>Tabla de Datos</span>
                     </button>
                 </nav>
             </div>

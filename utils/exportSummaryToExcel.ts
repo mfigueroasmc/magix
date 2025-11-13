@@ -31,14 +31,16 @@ export const exportSummaryToExcel = (data: Registro[], fileName: string) => {
     }
 
     const summary = summaries[monthKey];
+    const tipoNormalizado = registro.tipo.toLowerCase().trim();
+    const itemNormalizado = registro.item.toLowerCase();
 
-    if (registro.tipo === 'Venta') {
+    if (tipoNormalizado === 'venta') {
       summary['Total Venta'] += registro.total;
-      if (registro.item.toLowerCase().includes('iluminación')) {
+      if (itemNormalizado.includes('iluminación')) {
         summary['Venta Iluminación'] += registro.total;
       }
-    } else if (registro.tipo === 'SubArriendo') {
-      if (registro.item.toLowerCase().includes('iluminación')) {
+    } else if (tipoNormalizado === 'subarriendo') {
+      if (itemNormalizado.includes('iluminación')) {
         summary['Subarriendo Iluminación'] += registro.total;
       }
     }
@@ -49,6 +51,11 @@ export const exportSummaryToExcel = (data: Registro[], fileName: string) => {
     const bKey = Object.keys(summaries).find(key => summaries[key] === b)!;
     return bKey.localeCompare(aKey); // Descending order
   });
+
+  if (sortedSummaries.length === 0) {
+    alert("No hay datos para generar el resumen en el rango de fechas seleccionado.");
+    return;
+  }
 
   const worksheet = XLSX.utils.json_to_sheet(sortedSummaries);
 

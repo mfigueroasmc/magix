@@ -98,36 +98,33 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         .map(([name, total]) => ({ name, total }))
         .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
         
-        // FIX: Cast initial value of reduce to fix type inference issues with Object.values and subsequent sort.
-        const porCompania = Object.values(filteredData.reduce((acc, curr) => {
+        // Fix: Explicitly type the accumulator in reduce to prevent type inference issues.
+        const porCompania = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
             const key = curr.compania;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
             return acc;
-        // FIX: Cast initial value of reduce to properly type the accumulator.
-        }, {} as {[key: string]: { name: string; total: number }}))
+        }, {}))
         .sort((a,b) => b.total - a.total);
 
-        // FIX: Cast initial value of reduce to fix type inference issues with Object.entries and subsequent operations.
-        const porSalon = Object.entries(filteredData.reduce((acc, curr) => {
+        // Fix: Explicitly type the accumulator in reduce to prevent type inference issues.
+        const porSalon = Object.entries(filteredData.reduce<{[key: string]: { name: string; total: number; count: number }}>((acc, curr) => {
             const key = curr.salon;
             if (!acc[key]) acc[key] = { name: key, total: 0, count: 0 };
             acc[key].total += curr.total;
             acc[key].count += 1;
             return acc;
-        // FIX: Cast initial value of reduce to properly type the accumulator.
-        }, {} as { [key: string]: { name: string; total: number; count: number } }))
+        }, {}))
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => b.total - a.total);
         
-        // FIX: Cast initial value of reduce to fix type inference issues for Pareto analysis.
-        const porItem = Object.values(filteredData.reduce((acc, curr) => {
+        // Fix: Explicitly type the accumulator in reduce to prevent type inference issues.
+        const porItem = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
             const key = curr.item;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
             return acc;
-        // FIX: Cast initial value of reduce to properly type the accumulator.
-        }, {} as { [key: string]: { name: string; total: number } }))
+        }, {}))
         .sort((a,b) => b.total - a.total);
 
         const totalRevenue = porItem.reduce((sum, item) => sum + item.total, 0);
