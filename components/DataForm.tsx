@@ -1,25 +1,50 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Registro } from '../types';
 
+type FormData = Omit<Registro, 'id' | 'user_id' | 'created_at'>;
+
 interface DataFormProps {
-  onSubmit: (registro: Omit<Registro, 'id' | 'user_id' | 'created_at'>) => void;
+  onSubmit: (registro: Omit<Registro, 'user_id' | 'created_at'>) => void;
+  onCancel: () => void;
+  initialData?: Registro | null;
 }
 
-const DataForm: React.FC<DataFormProps> = ({ onSubmit }) => {
-  const initialState = {
-    fecha: new Date().toISOString().split('T')[0],
-    beo: '',
-    salon: '',
-    compania: '',
-    item: '',
-    tipo: 'Venta',
-    valor: 0,
-    cantidad: 1,
-    total: 0,
-  };
-  const [formData, setFormData] = useState<Omit<Registro, 'id' | 'user_id' | 'created_at'>>(initialState);
+const DataForm: React.FC<DataFormProps> = ({ onSubmit, onCancel, initialData }) => {
+  const isEditing = !!initialData;
 
+  const getInitialState = (): FormData => {
+    if (isEditing && initialData) {
+      return {
+        fecha: initialData.fecha,
+        beo: initialData.beo || '',
+        salon: initialData.salon,
+        compania: initialData.compania,
+        item: initialData.item,
+        tipo: initialData.tipo,
+        valor: initialData.valor,
+        cantidad: initialData.cantidad,
+        total: initialData.total,
+      };
+    }
+    return {
+      fecha: new Date().toISOString().split('T')[0],
+      beo: '',
+      salon: '',
+      compania: '',
+      item: '',
+      tipo: 'Venta',
+      valor: 0,
+      cantidad: 1,
+      total: 0,
+    };
+  };
+
+  const [formData, setFormData] = useState<FormData>(getInitialState());
+
+  useEffect(() => {
+    setFormData(getInitialState());
+  }, [initialData]);
+  
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -37,17 +62,16 @@ const DataForm: React.FC<DataFormProps> = ({ onSubmit }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fecha || !formData.salon || !formData.compania || !formData.item || !formData.tipo || formData.valor <= 0 || formData.cantidad <= 0) {
-      alert('Por favor, completa todos los campos requeridos con valores válidos.');
+    if (!formData.fecha || !formData.salon || !formData.compania || !formData.item || !formData.tipo || formData.valor < 0 || formData.cantidad <= 0) {
+      alert('Por favor, completa todos los campos requeridos con valores válidos (valor no puede ser negativo y cantidad debe ser mayor a 0).');
       return;
     }
-    onSubmit(formData);
-    setFormData(initialState);
+    onSubmit({ ...formData, id: initialData?.id });
   };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Añadir Nuevo Registro</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">{isEditing ? 'Editar Registro' : 'Añadir Nuevo Registro'}</h3>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Input fields */}
             <div className="col-span-1">
@@ -75,11 +99,13 @@ const DataForm: React.FC<DataFormProps> = ({ onSubmit }) => {
                 <select id="tipo" name="tipo" value={formData.tipo} onChange={handleChange} required className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white">
                     <option value="Venta">Venta</option>
                     <option value="SubArriendo">SubArriendo</option>
+                    <option value="Estándar">Estándar</option>
+                    <option value="Adicional">Adicional</option>
                 </select>
             </div>
             <div className="col-span-1">
                 <label htmlFor="valor" className="block text-sm font-medium text-gray-700">Valor</label>
-                <input type="number" id="valor" name="valor" value={formData.valor} onChange={handleChange} required min="0" className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
+                <input type="number" id="valor" name="valor" value={formData.valor} onChange={handleChange} required min="0" step="any" className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
             </div>
             <div className="col-span-1">
                 <label htmlFor="cantidad" className="block text-sm font-medium text-gray-700">Cantidad</label>
@@ -87,11 +113,14 @@ const DataForm: React.FC<DataFormProps> = ({ onSubmit }) => {
             </div>
             <div className="col-span-1">
                 <label htmlFor="total" className="block text-sm font-medium text-gray-700">Total</label>
-                <input type="text" id="total" name="total" value={formData.total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })} readOnly className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-gray-100 cursor-not-allowed"/>
+                <input type="text" id="total" name="total" value={formData.total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })} readOnly className="mt-1 block w-full rounded-md border border-gray-300 sm:text-sm bg-gray-100 cursor-not-allowed"/>
             </div>
-            <div className="col-span-full flex justify-end">
+            <div className="col-span-full flex justify-end gap-2">
+                <button type="button" onClick={onCancel} className="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    Cancelar
+                </button>
                 <button type="submit" className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Guardar Registro
+                    {isEditing ? 'Guardar Cambios' : 'Guardar Registro'}
                 </button>
             </div>
         </form>

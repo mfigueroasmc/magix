@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { Registro, ChartType } from '../types';
@@ -14,7 +13,9 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ data }) => {
         const groupedData = data.reduce((acc, curr) => {
             let key: string;
             if (chartType === 'fecha') {
-                key = new Date(curr.fecha).toLocaleDateString('es-CL', { month: 'short', year: 'numeric' });
+                const parts = curr.fecha.split('-').map(p => parseInt(p, 10));
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                key = date.toLocaleDateString('es-CL', { month: 'short', year: 'numeric' });
             } else {
                 key = curr[chartType] || 'Sin especificar';
             }

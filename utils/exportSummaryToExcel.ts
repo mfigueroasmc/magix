@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import type { Registro } from '../types';
 
@@ -13,15 +12,16 @@ export const exportSummaryToExcel = (data: Registro[], fileName: string) => {
   const summaries: { [key: string]: MonthlySummary } = {};
 
   data.forEach(registro => {
-    const date = new Date(registro.fecha);
-    const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-    const year = adjustedDate.getUTCFullYear();
-    const month = adjustedDate.getUTCMonth();
+    const parts = registro.fecha.split('-').map(p => parseInt(p, 10));
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
     
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
     
     if (!summaries[monthKey]) {
-      const monthName = adjustedDate.toLocaleString('es-CL', { month: 'long', year: 'numeric' });
+      const monthName = date.toLocaleString('es-CL', { month: 'long', year: 'numeric' });
       summaries[monthKey] = {
         'Mes': monthName.charAt(0).toUpperCase() + monthName.slice(1),
         'Total Venta': 0,

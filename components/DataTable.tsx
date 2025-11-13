@@ -1,16 +1,16 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Registro } from '../types';
-import { SortAscIcon, SortDescIcon, TrashIcon } from './ui/Icons';
+import { SortAscIcon, SortDescIcon, TrashIcon, EditIcon } from './ui/Icons';
 
 interface DataTableProps {
   data: Registro[];
   onDelete: (id: number) => void;
+  onEdit: (registro: Registro) => void;
 }
 
 type SortKey = keyof Registro;
 
-const DataTable: React.FC<DataTableProps> = ({ data, onDelete }) => {
+const DataTable: React.FC<DataTableProps> = ({ data, onDelete, onEdit }) => {
   const [filter, setFilter] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>({ key: 'fecha', direction: 'descending' });
 
@@ -58,6 +58,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, onDelete }) => {
     { key: 'salon', label: 'Salón' },
     { key: 'compania', label: 'Compañía' },
     { key: 'item', label: 'Ítem', className: 'w-1/4' },
+    { key: 'tipo', label: 'Tipo' },
     { key: 'valor', label: 'Valor' },
     { key: 'cantidad', label: 'Cant.' },
     { key: 'total', label: 'Total' },
@@ -84,8 +85,8 @@ const DataTable: React.FC<DataTableProps> = ({ data, onDelete }) => {
                                 </button>
                             </th>
                         ))}
-                         <th scope="col" className="relative px-6 py-3">
-                            <span className="sr-only">Eliminar</span>
+                         <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Acciones
                         </th>
                     </tr>
                 </thead>
@@ -96,13 +97,19 @@ const DataTable: React.FC<DataTableProps> = ({ data, onDelete }) => {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.salon}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.compania}</td>
                             <td className="px-6 py-4 whitespace-normal text-sm text-gray-700 break-words">{item.item}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.tipo}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.valor.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.cantidad}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{item.total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button onClick={() => item.id && onDelete(item.id)} className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100">
-                                    <TrashIcon className="h-5 w-5"/>
-                                </button>
+                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                <div className="flex items-center justify-center gap-2">
+                                    <button onClick={() => onEdit(item)} className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100" title="Editar">
+                                        <EditIcon className="h-5 w-5"/>
+                                    </button>
+                                    <button onClick={() => item.id && onDelete(item.id)} className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100" title="Eliminar">
+                                        <TrashIcon className="h-5 w-5"/>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}

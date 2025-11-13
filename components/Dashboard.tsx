@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
@@ -11,7 +10,6 @@ import { exportSummaryToExcel } from '../utils/exportSummaryToExcel';
 import { parseExcelFile } from '../utils/importFromExcel';
 import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon } from './ui/Icons';
 
-
 interface DashboardProps {
   session: Session;
 }
@@ -22,12 +20,14 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'table' | 'charts'>('table');
   const [showForm, setShowForm] = useState(false);
+  const [editingRegistro, setEditingRegistro] = useState<Registro | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchRegistros = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from('registros')
@@ -47,23 +47,55 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
     fetchRegistros();
   }, [fetchRegistros]);
 
-  const addRegistro = async (registro: Omit<Registro, 'id' | 'user_id' | 'created_at'>) => {
+  const handleOpenFormForCreate = () => {
+    setEditingRegistro(null);
+    setShowForm(true);
+  };
+
+  const handleOpenFormForEdit = (registro: Registro) => {
+    setEditingRegistro(registro);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingRegistro(null);
+  };
+
+  const handleSaveRegistro = async (registro: Omit<Registro, 'user_id' | 'created_at'>) => {
     try {
-      const { data, error } = await supabase
-        .from('registros')
-        .insert([{ ...registro, user_id: session.user.id }])
-        .select();
+      const { id, ...dataToSave } = registro;
+
+      const payload = {
+        ...dataToSave,
+        user_id: session.user.id,
+      };
+
+      let error;
+      if (id) {
+        // Update
+        const { error: updateError } = await supabase
+          .from('registros')
+          .update(payload)
+          .eq('id', id);
+        error = updateError;
+      } else {
+        // Insert
+        const { error: insertError } = await supabase
+          .from('registros')
+          .insert(payload);
+        error = insertError;
+      }
       
       if (error) throw error;
       
-      if (data) {
-        setRegistros(prev => [data[0], ...prev]);
-        setShowForm(false);
-      }
+      handleCloseForm();
+      await fetchRegistros(); // Refresh data
     } catch (error: any) {
-      setError('Error al agregar el registro: ' + error.message);
+      setError('Error al guardar el registro: ' + error.message);
     }
   };
+
 
   const deleteRegistro = async (id: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este registro?')) {
@@ -175,9 +207,9 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                         <SummaryIcon className="h-5 w-5"/>
                         Exportar Resumen
                     </button>
-                    <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                    <button onClick={handleOpenFormForCreate} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
                         <AddIcon className="h-5 w-5"/>
-                        {showForm ? 'Cancelar' : 'Nuevo Registro'}
+                        Nuevo Registro
                     </button>
                 </div>
             </div>
@@ -185,7 +217,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
 
         {showForm && (
           <div className="mb-6">
-            <DataForm onSubmit={addRegistro} />
+            <DataForm onSubmit={handleSaveRegistro} onCancel={handleCloseForm} initialData={editingRegistro}/>
           </div>
         )}
 
@@ -204,7 +236,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
             </div>
             
             {loading ? <div className="text-center py-10">Cargando datos...</div> : 
-              view === 'table' ? <DataTable data={registros} onDelete={deleteRegistro} /> : <AnalyticsCharts data={registros} />}
+              view === 'table' ? <DataTable data={registros} onDelete={deleteRegistro} onEdit={handleOpenFormForEdit} /> : <AnalyticsCharts data={registros} />}
         </div>
       </main>
     </div>
