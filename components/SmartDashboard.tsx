@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import type { Registro } from '../types';
-import { DollarSignIcon, BuildingIcon, UsersIcon, CalendarIcon } from './ui/Icons';
+import { DollarSignIcon, BuildingIcon, UsersIcon, CalendarIcon, AnalyticsIcon } from './ui/Icons';
 
 interface SmartDashboardProps {
   data: Registro[];
@@ -38,21 +38,39 @@ const KpiCard: React.FC<{ title: string; value: string; icon: React.ReactNode; i
 
 const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
     const [activeTab, setActiveTab] = useState('temporal');
+    
+    const currentYear = new Date().getFullYear();
+    const defaultStartDate = `${currentYear}-01-01`;
+    const defaultEndDate = `${currentYear}-12-31`;
+
+    const [startDate, setStartDate] = useState(defaultStartDate);
+    const [endDate, setEndDate] = useState(defaultEndDate);
+    const [filteredData, setFilteredData] = useState<Registro[]>([]);
+
+    const handleApplyFilter = useCallback(() => {
+        const newFilteredData = data.filter(item => {
+            // Use string comparison for 'YYYY-MM-DD' format
+            return item.fecha >= startDate && item.fecha <= endDate;
+        });
+        setFilteredData(newFilteredData);
+    }, [data, startDate, endDate]);
+    
+    useEffect(() => {
+        // Apply initial filter when component mounts
+        handleApplyFilter();
+    }, [data, handleApplyFilter]);
 
     const kpis = useMemo(() => {
-        if (data.length === 0) return null;
-        const totalFacturado = data.reduce((acc, curr) => acc + curr.total, 0);
-        const promedioValor = data.reduce((acc, curr) => acc + curr.valor, 0) / data.length;
-        const companiasUnicas = new Set(data.map(d => d.compania)).size;
-        const salonesUnicos = new Set(data.map(d => d.salon)).size;
+        if (filteredData.length === 0) return null;
+        const totalFacturado = filteredData.reduce((acc, curr) => acc + curr.total, 0);
+        const promedioValor = filteredData.reduce((acc, curr) => acc + curr.valor, 0) / filteredData.length;
+        const companiasUnicas = new Set(filteredData.map(d => d.compania)).size;
+        const salonesUnicos = new Set(filteredData.map(d => d.salon)).size;
 
-        const dates = data.map(d => new Date(d.fecha.split('-').join('/'))); // More robust date parsing
-        const fechaMin = new Date(Math.min(...dates.map(d => d.getTime())));
-        const fechaMax = new Date(Math.max(...dates.map(d => d.getTime())));
-        const dateRange = `${fechaMin.toLocaleDateString('es-CL')} - ${fechaMax.toLocaleDateString('es-CL')}`;
+        const dateRange = `${new Date(startDate + 'T00:00:00').toLocaleDateString('es-CL')} - ${new Date(endDate + 'T00:00:00').toLocaleDateString('es-CL')}`;
 
-        // Monthly variation
-        const totalsByMonth: { [key: string]: number } = data.reduce((acc, curr) => {
+        // Monthly variation logic now uses filteredData
+        const totalsByMonth: { [key: string]: number } = filteredData.reduce((acc, curr) => {
             const monthKey = curr.fecha.substring(0, 7); // YYYY-MM
             acc[monthKey] = (acc[monthKey] || 0) + curr.total;
             return acc;
@@ -69,13 +87,10 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         }
 
         return { totalFacturado, promedioValor, companiasUnicas, salonesUnicos, dateRange, monthlyVariation, variationColor };
-    }, [data]);
+    }, [filteredData, startDate, endDate]);
 
     const chartData = useMemo(() => {
-        // FIX: Explicitly type the accumulator in `reduce` calls.
-        // This prevents TypeScript from inferring the accumulator as `any` or `unknown`,
-        // which was causing errors in subsequent `.sort`, `.map`, and `.filter` operations.
-        const temporal = Object.entries(data.reduce<{[key: string]: number}>((acc, curr) => {
+        const temporal = Object.entries(filteredData.reduce<{[key: string]: number}>((acc, curr) => {
             const date = curr.fecha;
             acc[date] = (acc[date] || 0) + curr.total;
             return acc;
@@ -83,7 +98,8 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         .map(([name, total]) => ({ name, total }))
         .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
         
-        const porCompania = Object.values(data.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
+        // FIX: Add explicit type for the accumulator in reduce to fix type inference issues.
+        const porCompania = Object.values(filteredData.reduce<{[key: string]: { name: string; total: number }}>((acc, curr) => {
             const key = curr.compania;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
@@ -91,7 +107,8 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         }, {}))
         .sort((a,b) => b.total - a.total);
 
-        const porSalon = Object.entries(data.reduce<{ [key: string]: { name: string; total: number; count: number } }>((acc, curr) => {
+        // FIX: Add explicit type for the accumulator in reduce to fix type inference issues.
+        const porSalon = Object.entries(filteredData.reduce<{ [key: string]: { name: string; total: number; count: number } }>((acc, curr) => {
             const key = curr.salon;
             if (!acc[key]) acc[key] = { name: key, total: 0, count: 0 };
             acc[key].total += curr.total;
@@ -101,7 +118,8 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => b.total - a.total);
         
-        const porItem = Object.values(data.reduce<{ [key: string]: { name: string; total: number } }>((acc, curr) => {
+        // FIX: Add explicit type for the accumulator in reduce to fix type inference issues.
+        const porItem = Object.values(filteredData.reduce<{ [key: string]: { name: string; total: number } }>((acc, curr) => {
             const key = curr.item;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
             acc[key].total += curr.total;
@@ -112,7 +130,7 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         const totalRevenue = porItem.reduce((sum, item) => sum + item.total, 0);
         let cumulativeTotal = 0;
         const paretoItems = porItem.filter(item => {
-            if (cumulativeTotal / totalRevenue < 0.8) {
+            if (totalRevenue > 0 && cumulativeTotal / totalRevenue < 0.8) {
                 cumulativeTotal += item.total;
                 return true;
             }
@@ -120,7 +138,7 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         });
 
         return { temporal, porCompania, porSalon, paretoItems };
-    }, [data]);
+    }, [filteredData]);
 
     if (data.length === 0) {
         return <p className="text-center text-gray-500 py-10">No hay datos para mostrar el dashboard.</p>;
@@ -137,12 +155,33 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <KpiCard title="Total General Facturado" value={formatCurrency(kpis!.totalFacturado)} icon={<DollarSignIcon className="h-6 w-6 text-gray-400"/>} insight={kpis!.monthlyVariation} insightColor={kpis!.variationColor} />
-                <KpiCard title="Promedio de Valor Unitario" value={formatCurrency(kpis!.promedioValor)} icon={<DollarSignIcon className="h-6 w-6 text-gray-400"/>} />
-                <KpiCard title="Total de Compañías" value={String(kpis!.companiasUnicas)} icon={<UsersIcon className="h-6 w-6 text-gray-400"/>} />
-                <KpiCard title="Total de Salones Usados" value={String(kpis!.salonesUnicos)} icon={<BuildingIcon className="h-6 w-6 text-gray-400"/>} />
-                <KpiCard title="Rango de Fechas" value={kpis!.dateRange} icon={<CalendarIcon className="h-6 w-6 text-gray-400"/>} />
+            { kpis &&
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <KpiCard title="Total General Facturado" value={formatCurrency(kpis.totalFacturado)} icon={<DollarSignIcon className="h-6 w-6 text-gray-400"/>} insight={kpis.monthlyVariation} insightColor={kpis.variationColor} />
+                    <KpiCard title="Promedio de Valor Unitario" value={formatCurrency(kpis.promedioValor)} icon={<DollarSignIcon className="h-6 w-6 text-gray-400"/>} />
+                    <KpiCard title="Total de Compañías" value={String(kpis.companiasUnicas)} icon={<UsersIcon className="h-6 w-6 text-gray-400"/>} />
+                    <KpiCard title="Total de Salones Usados" value={String(kpis.salonesUnicos)} icon={<BuildingIcon className="h-6 w-6 text-gray-400"/>} />
+                    <KpiCard title="Rango de Fechas" value={kpis.dateRange} icon={<CalendarIcon className="h-6 w-6 text-gray-400"/>} />
+                </div>
+            }
+
+            <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="flex-1">
+                        <label htmlFor="start-date" className="block text-sm font-medium text-gray-700">Fecha Inicial</label>
+                        <input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
+                    </div>
+                    <div className="flex-1">
+                        <label htmlFor="end-date" className="block text-sm font-medium text-gray-700">Fecha Final</label>
+                        <input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
+                    </div>
+                    <div className="self-end">
+                        <button onClick={handleApplyFilter} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors h-[38px] mt-1">
+                            <AnalyticsIcon className="h-5 w-5"/>
+                            Analizar Rango
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <div>
@@ -160,74 +199,76 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
                     </div>
                 </div>
 
-                <div className="w-full h-96">
-                    {activeTab === 'temporal' && (
-                        <ResponsiveContainer>
-                            <LineChart data={chartData.temporal} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                                <YAxis tickFormatter={formatCompactCurrency} tick={{ fontSize: 12 }} />
-                                <Tooltip content={<CustomTooltip />}/>
-                                <Legend />
-                                <Line type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={2} name="Total Facturado" dot={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    )}
-                    {activeTab === 'compania' && (
-                         <ResponsiveContainer>
-                            <BarChart data={chartData.porCompania.slice(0, 15)} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" tickFormatter={formatCompactCurrency} />
-                                <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
-                                <Tooltip content={<CustomTooltip />}/>
-                                <Legend />
-                                <Bar dataKey="total" fill="#00C49F" name="Total Facturado" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    )}
-                     {activeTab === 'salon' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
-                           <div>
-                               <h4 className="text-center font-semibold text-gray-600 mb-2">Ingresos por Salón</h4>
-                                <ResponsiveContainer>
-                                    <BarChart data={chartData.porSalon.slice(0, 10)} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} interval={0} tick={{ fontSize: 12 }} />
-                                        <YAxis tickFormatter={formatCompactCurrency} />
-                                        <Tooltip content={<CustomTooltip />}/>
-                                        <Bar dataKey="total" fill="#FFBB28" name="Total Ingresos"/>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                           </div>
-                           <div>
-                                <h4 className="text-center font-semibold text-gray-600 mb-2">Ocupación por Salón</h4>
-                                <ResponsiveContainer>
-                                    <BarChart data={chartData.porSalon.sort((a,b) => b.count - a.count).slice(0, 10)} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} interval={0} tick={{ fontSize: 12 }} />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Bar dataKey="count" fill="#FF8042" name="Cantidad de Eventos"/>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                           </div>
-                        </div>
-                    )}
-                     {activeTab === 'item' && (
-                         <div>
-                            <h4 className="text-center font-semibold text-gray-600 mb-2">Análisis de Pareto: Ítems que generan el 80% de los ingresos</h4>
+                {filteredData.length === 0 ? <p className="text-center text-gray-500 py-10">No se encontraron datos para el rango de fechas seleccionado.</p> : (
+                    <div className="w-full h-96">
+                        {activeTab === 'temporal' && (
                             <ResponsiveContainer>
-                                <PieChart>
-                                    <Pie data={chartData.paretoItems} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={120} labelLine={false} label={({ name, percent }) => `${name.substring(0,15)}... (${(percent * 100).toFixed(0)}%)`}>
-                                    {chartData.paretoItems.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                                    </Pie>
+                                <LineChart data={chartData.temporal} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                                    <YAxis tickFormatter={formatCompactCurrency} tick={{ fontSize: 12 }} />
                                     <Tooltip content={<CustomTooltip />}/>
                                     <Legend />
-                                </PieChart>
+                                    <Line type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={2} name="Total Facturado" dot={false} />
+                                </LineChart>
                             </ResponsiveContainer>
-                         </div>
-                    )}
-                </div>
+                        )}
+                        {activeTab === 'compania' && (
+                             <ResponsiveContainer>
+                                <BarChart data={chartData.porCompania.slice(0, 15)} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis type="number" tickFormatter={formatCompactCurrency} />
+                                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
+                                    <Tooltip content={<CustomTooltip />}/>
+                                    <Legend />
+                                    <Bar dataKey="total" fill="#00C49F" name="Total Facturado" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                         {activeTab === 'salon' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+                               <div>
+                                   <h4 className="text-center font-semibold text-gray-600 mb-2">Ingresos por Salón</h4>
+                                    <ResponsiveContainer>
+                                        <BarChart data={chartData.porSalon.slice(0, 10)} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} interval={0} tick={{ fontSize: 12 }} />
+                                            <YAxis tickFormatter={formatCompactCurrency} />
+                                            <Tooltip content={<CustomTooltip />}/>
+                                            <Bar dataKey="total" fill="#FFBB28" name="Total Ingresos"/>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                               </div>
+                               <div>
+                                    <h4 className="text-center font-semibold text-gray-600 mb-2">Ocupación por Salón</h4>
+                                    <ResponsiveContainer>
+                                        <BarChart data={chartData.porSalon.sort((a,b) => b.count - a.count).slice(0, 10)} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} interval={0} tick={{ fontSize: 12 }} />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Bar dataKey="count" fill="#FF8042" name="Cantidad de Eventos"/>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                               </div>
+                            </div>
+                        )}
+                         {activeTab === 'item' && (
+                             <div>
+                                <h4 className="text-center font-semibold text-gray-600 mb-2">Análisis de Pareto: Ítems que generan el 80% de los ingresos</h4>
+                                <ResponsiveContainer>
+                                    <PieChart>
+                                        <Pie data={chartData.paretoItems} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={120} labelLine={false} label={({ name, percent }) => `${name.substring(0,15)}... (${(percent * 100).toFixed(0)}%)`}>
+                                        {chartData.paretoItems.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                        </Pie>
+                                        <Tooltip content={<CustomTooltip />}/>
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                             </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
