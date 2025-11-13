@@ -20,7 +20,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'table' | 'charts'>('table');
+  const [view, setView] = useState<'table' | 'charts'>('charts');
   const [showForm, setShowForm] = useState(false);
   const [editingRegistro, setEditingRegistro] = useState<Registro | null>(null);
   const [isImporting, setIsImporting] = useState(false);
