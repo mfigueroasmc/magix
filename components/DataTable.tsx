@@ -131,7 +131,7 @@ const DataTable: React.FC<DataTableProps> = ({ events, onDelete, onEdit, onAddIt
     { key: 'fecha', label: 'Fecha' },
     { key: 'salon', label: 'Salón' },
     { key: 'compania', label: 'Compañía' },
-    { key: 'beo', label: 'BEO' },
+    { key: 'beo', label: 'Código Evento (BEO)' },
     { key: 'itemsCount', label: 'N° Ítems' },
     { key: 'total', label: 'Total Evento' },
   ];

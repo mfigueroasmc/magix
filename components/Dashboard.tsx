@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import type { Registro } from '../types';
+import type { Registro, Articulo, Reserva } from '../types';
 import DataForm from './DataForm';
 import DataTable from './DataTable';
 import SmartDashboard from './SmartDashboard';
 import Inventory from './Inventory';
+import Events from './Events';
 import { exportToExcel } from '../utils/exportToExcel';
 import { exportSummaryToExcel } from '../utils/exportSummaryToExcel';
 import { parseExcelFile } from '../utils/importFromExcel';
-import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon, CalendarIcon, InventoryIcon } from './ui/Icons';
+import { MagixLogo, LogoutIcon, AddIcon, ChartIcon, TableIcon, DownloadIcon, ImportIcon, SummaryIcon, CalendarIcon, InventoryIcon, BriefcaseIcon } from './ui/Icons';
 import Chatbot from './Chatbot';
 
 interface DashboardProps {
@@ -18,9 +19,12 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   const [registros, setRegistros] = useState<Registro[]>([]);
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+  const [reservas, setReservas] = useState<Reserva[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'charts' | 'table' | 'inventory'>('charts');
+  const [view, setView] = useState<'charts' | 'table' | 'inventory' | 'events'>('charts');
   const [showForm, setShowForm] = useState(false);
   const [editingRegistro, setEditingRegistro] = useState<Partial<Registro> | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -30,17 +34,25 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
 
-  const fetchRegistros = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase
-        .from('registros')
-        .select('*')
-        .order('fecha', { ascending: false });
-      
-      if (error) throw error;
-      setRegistros(data || []);
+        const [registrosResult, articulosResult, reservasResult] = await Promise.all([
+            supabase.from('registros').select('*').order('fecha', { ascending: false }),
+            // Fix: Explicitly cast the data from Supabase to ensure it conforms to the Articulo type.
+            supabase.from('articulos').select('*').order('grupo').order('subgrupo').order('descripcion'),
+            supabase.from('reservas').select('*')
+        ]);
+
+        if (registrosResult.error) throw new Error(`Al cargar registros: ${registrosResult.error.message}`);
+        if (articulosResult.error) throw new Error(`Al cargar artículos: ${articulosResult.error.message}`);
+        if (reservasResult.error) throw new Error(`Al cargar reservas: ${reservasResult.error.message}`);
+
+        setRegistros(registrosResult.data || []);
+        setArticulos((articulosResult.data as Articulo[]) || []);
+        setReservas(reservasResult.data || []);
+
     } catch (error: any) {
       setError('Error al cargar los datos: ' + error.message);
     } finally {
@@ -49,8 +61,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   }, []);
 
   useEffect(() => {
-    fetchRegistros();
-  }, [fetchRegistros]);
+    fetchAllData();
+  }, [fetchAllData]);
 
   const events = useMemo(() => {
     const eventMap = new Map<string, Registro[]>();
@@ -130,25 +142,50 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
       if (error) throw error;
       
       handleCloseForm();
-      await fetchRegistros(); // Refresh data
+      await fetchAllData(); // Refresh data
     } catch (error: any) {
       setError('Error al guardar el registro: ' + error.message);
     }
   };
-
 
   const deleteRegistro = async (id: number) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este ítem?')) {
         try {
             const { error } = await supabase.from('registros').delete().match({ id });
             if (error) throw error;
-            setRegistros(prev => prev.filter(r => r.id !== id));
+            await fetchAllData();
         } catch (error: any) {
             setError('Error al eliminar el ítem: ' + error.message);
         }
     }
   };
   
+  const handleSaveOrUpdateReservation = async (reservation: Omit<Reserva, 'user_id' | 'created_at'>) => {
+    try {
+      const payload = {
+        ...reservation,
+        user_id: session.user.id,
+      };
+      const { error } = await supabase.from('reservas').upsert(payload).select();
+      if (error) throw error;
+      await fetchAllData();
+    } catch (error: any) {
+      setError('Error al guardar la reserva: ' + error.message);
+    }
+  };
+
+  const handleDeleteReservation = async (id: number) => {
+    if (window.confirm('¿Confirmas que quieres eliminar esta reserva?')) {
+      try {
+        const { error } = await supabase.from('reservas').delete().match({ id });
+        if (error) throw error;
+        await fetchAllData();
+      } catch (error: any) {
+        setError('Error al eliminar la reserva: ' + error.message);
+      }
+    }
+  };
+
   const filteredForExport = useMemo(() => {
     if (!exportStartDate && !exportEndDate) return registros;
     return registros.filter(r => {
@@ -194,7 +231,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         }
 
         setImportMessage(`${parsedData.length} registros importados exitosamente.`);
-        await fetchRegistros();
+        await fetchAllData();
     } catch (err: any) {
         setError(`Error al importar: ${err.message}`);
     } finally {
@@ -221,7 +258,18 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         case 'table':
             return <DataTable events={events} onDelete={deleteRegistro} onEdit={handleOpenFormForEdit} onAddItem={handleAddItemToEvent} />;
         case 'inventory':
-            return <Inventory session={session} events={events} />;
+            return <Inventory session={session} events={events} articulos={articulos} reservas={reservas} refetchData={fetchAllData} />;
+        case 'events':
+            return <Events
+                events={events}
+                articulos={articulos}
+                reservas={reservas}
+                onAddItem={handleAddItemToEvent}
+                onEditItem={handleOpenFormForEdit}
+                onDeleteItem={deleteRegistro}
+                onSaveReservation={handleSaveOrUpdateReservation}
+                onDeleteReservation={handleDeleteReservation}
+            />;
         default:
             return null;
     }
@@ -250,7 +298,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
         {importMessage && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">{importMessage}</div>}
         
-        { view !== 'inventory' && (
+        { view !== 'inventory' && view !== 'events' && (
             <>
                 <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -333,6 +381,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                     <button onClick={() => setView('charts')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'charts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
                        <ChartIcon className="h-5 w-5"/>
                        <span>Dashboard Inteligente</span>
+                    </button>
+                     <button onClick={() => setView('events')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'events' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
+                        <BriefcaseIcon className="h-5 w-5"/>
+                        <span>Eventos</span>
                     </button>
                     <button onClick={() => setView('table')} className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${view === 'table' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} flex items-center gap-2`}>
                         <TableIcon className="h-5 w-5"/>

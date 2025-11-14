@@ -130,7 +130,7 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
             }
         }
 
-        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        // Fix: Explicitly type the accumulator for reduce to ensure correct type inference.
         const salonUsage = filteredData.reduce<Record<string, number>>((acc, curr) => {
             acc[curr.salon] = (acc[curr.salon] || 0) + 1;
             return acc;
@@ -173,7 +173,7 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         .map(([name, total]) => ({ name, total }))
         .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
         
-        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        // Fix: Explicitly type the accumulator for reduce to ensure correct type inference.
         const porCompania = Object.values(filteredData.reduce<Record<string, { name: string; total: number }>>((acc, curr) => {
             const key = curr.compania;
             if (!acc[key]) acc[key] = { name: key, total: 0 };
@@ -182,7 +182,7 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
         }, {}))
         .sort((a, b) => b.total - a.total);
 
-        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        // Fix: Explicitly type the accumulator for reduce to ensure correct type inference.
         const porSalon = Object.values(filteredData.reduce<Record<string, { name: string; total: number; count: number }>>((acc, curr) => {
             const key = curr.salon;
             if (!acc[key]) acc[key] = { name: key, total: 0, count: 0 };
@@ -191,7 +191,7 @@ const SmartDashboard: React.FC<SmartDashboardProps> = ({ data }) => {
             return acc;
         }, {})).sort((a, b) => b.total - a.total);
         
-        // FIX: Explicitly type the accumulator for reduce to ensure correct type inference.
+        // Fix: Explicitly type the accumulator for reduce to ensure correct type inference.
         const porItem = Object.values(filteredData.reduce<Record<string, { name: string; total: number }>>((acc, curr) => {
             const key = curr.item;
             if (!acc[key]) acc[key] = { name: key, total: 0 };

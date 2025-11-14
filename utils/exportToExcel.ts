@@ -1,11 +1,10 @@
-
 import * as XLSX from 'xlsx';
 import type { Registro } from '../types';
 
 export const exportToExcel = (data: Registro[], fileName: string) => {
   const worksheetData = data.map(({ id, user_id, created_at, ...rest }) => ({
     Fecha: rest.fecha,
-    BEO: rest.beo || '',
+    'Código Evento (BEO)': rest.beo || '',
     Salón: rest.salon,
     Compañía: rest.compania,
     Ítem: rest.item,

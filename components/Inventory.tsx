@@ -1,54 +1,24 @@
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import type { Articulo, Reserva, Registro } from '../types';
+import type { Articulo, Reserva } from '../types';
 import { AddIcon, EditIcon, TrashIcon, InventoryIcon } from './ui/Icons';
 
 interface InventoryProps {
   session: Session;
   events: { key: string; fecha: string; salon: string; compania: string; }[];
+  articulos: Articulo[];
+  reservas: Reserva[];
+  refetchData: () => void;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ session, events }) => {
-    const [articulos, setArticulos] = useState<Articulo[]>([]);
-    const [reservas, setReservas] = useState<Reserva[]>([]);
-    const [loading, setLoading] = useState(true);
+const Inventory: React.FC<InventoryProps> = ({ session, events, articulos, reservas, refetchData }) => {
     const [error, setError] = useState<string | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingArticle, setEditingArticle] = useState<Articulo | null>(null);
     const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
     const [reservingArticle, setReservingArticle] = useState<Articulo | null>(null);
     const [reservationData, setReservationData] = useState({ eventKey: '', quantity: 1 });
-
-    const fetchInventoryData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const { data: articlesData, error: articlesError } = await supabase
-                .from('articulos')
-                .select('*')
-                .order('grupo')
-                .order('subgrupo')
-                .order('descripcion');
-            
-            if (articlesError) throw articlesError;
-            setArticulos(articlesData || []);
-
-            const { data: reservasData, error: reservasError } = await supabase.from('reservas').select('*');
-            if(reservasError) throw reservasError;
-            setReservas(reservasData || []);
-
-        } catch (error: any) {
-            setError('Error al cargar el inventario: ' + error.message);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchInventoryData();
-    }, [fetchInventoryData]);
 
     const handleOpenForm = (articulo: Articulo | null = null) => {
         setEditingArticle(articulo);
@@ -62,6 +32,7 @@ const Inventory: React.FC<InventoryProps> = ({ session, events }) => {
 
     const handleSaveArticle = async (articuloData: Omit<Articulo, 'id' | 'user_id' | 'created_at'>) => {
         try {
+            setError(null);
             const payload = { ...articuloData, user_id: session.user.id };
             let error;
 
@@ -69,13 +40,13 @@ const Inventory: React.FC<InventoryProps> = ({ session, events }) => {
                 const { error: updateError } = await supabase.from('articulos').update(payload).eq('id', editingArticle.id);
                 error = updateError;
             } else {
-                const { data, error: insertError } = await supabase.from('articulos').insert(payload).select();
+                const { error: insertError } = await supabase.from('articulos').insert(payload).select();
                 error = insertError;
             }
 
             if (error) throw error;
             handleCloseForm();
-            await fetchInventoryData();
+            refetchData();
         } catch (error: any) {
             setError('Error al guardar el artículo: ' + error.message);
         }
@@ -84,9 +55,10 @@ const Inventory: React.FC<InventoryProps> = ({ session, events }) => {
     const handleDeleteArticle = async (id: number) => {
         if(window.confirm('¿Estás seguro de que quieres eliminar este artículo? Esto también eliminará las reservas asociadas.')) {
             try {
+                 setError(null);
                 const { error } = await supabase.from('articulos').delete().eq('id', id);
                 if(error) throw error;
-                await fetchInventoryData();
+                refetchData();
             } catch (error: any) {
                 setError('Error al eliminar el artículo: ' + error.message);
             }
@@ -106,6 +78,7 @@ const Inventory: React.FC<InventoryProps> = ({ session, events }) => {
 
     const handleSaveReservation = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
         if(!reservingArticle || !reservationData.eventKey || reservationData.quantity <= 0) {
             setError('Por favor, selecciona un evento y una cantidad válida.');
             return;
@@ -121,7 +94,7 @@ const Inventory: React.FC<InventoryProps> = ({ session, events }) => {
             const { error } = await supabase.from('reservas').insert(payload);
             if (error) throw error;
             closeReservationModal();
-            await fetchInventoryData();
+            refetchData();
         } catch (error: any) {
             setError('Error al crear la reserva: ' + error.message);
         }
@@ -137,7 +110,6 @@ const Inventory: React.FC<InventoryProps> = ({ session, events }) => {
         }, {} as Record<number, number>);
     }, [reservas]);
 
-    if (loading) return <p className="text-center py-10">Cargando inventario...</p>;
 
     return (
         <div className="space-y-6">

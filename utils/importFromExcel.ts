@@ -1,10 +1,11 @@
-
 import * as XLSX from 'xlsx';
 import type { Registro } from '../types';
 
 const columnMapping: { [key: string]: keyof Omit<Registro, 'id' | 'user_id' | 'created_at' | 'total'> } = {
   'fecha': 'fecha',
   'beo': 'beo',
+  'codigo evento': 'beo',
+  'codigo_evento': 'beo',
   'salon': 'salon',
   'compania': 'compania',
   'item': 'item',

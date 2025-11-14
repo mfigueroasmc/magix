@@ -83,7 +83,7 @@ const DataForm: React.FC<DataFormProps> = ({ onSubmit, onCancel, initialData }) 
                 <input type="date" id="fecha" name="fecha" value={formData.fecha} onChange={handleChange} required disabled={isNewItemForEvent} className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white disabled:bg-gray-100"/>
             </div>
             <div className="col-span-1">
-                <label htmlFor="beo" className="block text-sm font-medium text-gray-700">BEO</label>
+                <label htmlFor="beo" className="block text-sm font-medium text-gray-700">Código Evento (BEO)</label>
                 <input type="text" id="beo" name="beo" value={formData.beo} onChange={handleChange} className="mt-1 block w-full rounded-md border border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white"/>
             </div>
             <div className="col-span-1">
